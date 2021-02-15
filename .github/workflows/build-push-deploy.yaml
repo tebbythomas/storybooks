@@ -4,6 +4,8 @@ on:
   push:
     branches:
     - master
+    tags:
+      - v\d+\.\d+\.\d+
 
 env:
   PROJECT_ID: storybook-304512
@@ -14,31 +16,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Set ENV
+          run: |-
+            if [ ${GITHUB_REF##*/} = "master" ]; then
+              echo "::set-env name=ENV::staging"
+            else 
+              echo "::set-env name=ENV::prod"
+            fi
 
-    # Setup gcloud CLI
-    - uses: google-github-actions/setup-gcloud@master
-      with:
-        version: '290.0.1'
-        service_account_key: ${{ secrets.GCE_SA_KEY }}
-        project_id: ${{ env.PROJECT_ID }}
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    # Configure Docker to use the gcloud command-line tool as a credential
-    # helper for authentication
-    - run: |-
-        gcloud --quiet auth configure-docker
+      # Setup gcloud CLI
+      - uses: google-github-actions/setup-gcloud@master
+        with:
+          version: '290.0.1'
+          service_account_key: ${{ secrets.GCE_SA_KEY }}
+          project_id: ${{ env.PROJECT_ID }}
 
-    # Build the Docker image
-    - name: Build
-      run: |-
-        make build
+      # Configure Docker to use the gcloud command-line tool as a credential
+      # helper for authentication
+      - run: |-
+          gcloud --quiet auth configure-docker
 
-    # Push the Docker image to Google Container Registry
-    - name: Publish
-      run: |-
-        make push
+      # Build the Docker image
+      - name: Build
+        run: |-
+          make build
 
-    - name: Deploy
-      run: |-
-        make deploy
+      # Push the Docker image to Google Container Registry
+      - name: Publish
+        run: |-
+          make push
+
+      - name: Deploy
+        run: |-
+          make deploy
